@@ -4,7 +4,7 @@ import * as anchor from "@project-serum/anchor";
 
 import {
   WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID,
-  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, InitFeeTierParams, InitPoolParams, WhirlpoolData
+  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, InitFeeTierParams, InitPoolParams, WhirlpoolData, TickUtil, InitTickArrayParams
 } from "@orca-so/whirlpools-sdk";
 import {
    EMPTY_INSTRUCTION, deriveATA, resolveOrCreateATA
@@ -14,7 +14,11 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/sp
 import { Account, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
 import Decimal from "decimal.js";
 import { TransactionBuilder, Instruction } from "@orca-so/common-sdk";
+import { payer } from "./payer";
 const defaultInitSqrtPrice = MathUtil.toX64_BN(new anchor.BN(5));
+const tokenAMintPubKey = new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT")//await createMint(provider);
+const tokenBMintPubKey = new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V")
+const configAccount = new PublicKey('7oC9NUSbkx3RcwLbBAXmKHP2e47PkHSCquNrrycx8xNo')
 
 async function main() {
     //export ANCHOR_WALLET='/Users/macbook/Desktop/halima/tour-de-whirlpool/wallet.json'
@@ -28,23 +32,23 @@ async function main() {
     console.log("wallet pubkey:", ctx.wallet.publicKey.toBase58());
 
     const price = MathUtil.toX64(new Decimal(5));
-    const { configInitInfo, poolInitInfo, feeTierParams } = await initTestPool(
+
+    const {poolInitInfo } = await initTestPool(
           ctx,
           128,
           price
         );
-        const whirlpool = (await fetcher.getPool(poolInitInfo.whirlpoolPda.publicKey)) as WhirlpoolData;
+        const poolData = (await fetcher.getPool(poolInitInfo.whirlpoolPda.publicKey)) as WhirlpoolData;
     
         const expectedWhirlpoolPda = PDAUtil.getWhirlpool(
           ORCA_WHIRLPOOL_PROGRAM_ID,
-          configInitInfo.whirlpoolsConfigKeypair.publicKey,
+          configAccount,
           poolInitInfo.tokenMintA,
           poolInitInfo.tokenMintB,
           128
         );
         console.log("poolInfo ",poolInitInfo.whirlpoolPda.publicKey.toBase58(),expectedWhirlpoolPda.publicKey.toBase58())
-        console.log("config account",configInitInfo.whirlpoolsConfigKeypair.publicKey.toBase58())
-        console.log(whirlpool.tokenMintA,(poolInitInfo.tokenMintA));
+        console.log(poolData.tokenMintA,(poolInitInfo.tokenMintA));
         const whirlpool1 = await client.getPool(poolInitInfo.whirlpoolPda.publicKey);
         console.log("pool 1 ",whirlpool1.getAddress().toBase58())
         /*assert.ok(poolInitInfo.whirlpoolPda.publicKey.equals(expectedWhirlpoolPda.publicKey));
@@ -125,7 +129,8 @@ export const generateDefaultConfigParams = (
     initSqrtPrice = defaultInitSqrtPrice,
     funder?: Keypair
   ) {
-    const { configInitInfo, poolInitInfo, configKeypairs, feeTierParams } = await buildTestPoolParams(
+
+    const { poolInitInfo, feeTierParams } = await buildTestPoolParams(
       ctx,
       tickSpacing,
       3000,
@@ -140,8 +145,6 @@ export const generateDefaultConfigParams = (
   
     return {
       txId: await tx.buildAndExecute(),
-      configInitInfo,
-      configKeypairs,
       poolInitInfo,
       feeTierParams,
     };
@@ -153,27 +156,21 @@ export async function buildTestPoolParams(
   initSqrtPrice = defaultInitSqrtPrice,
   funder?: PublicKey
 ) {
-  const { configInitInfo, configKeypairs } = generateDefaultConfigParams(ctx);
-  await toTx(ctx, WhirlpoolIx.initializeConfigIx(ctx.program, configInitInfo)).buildAndExecute();
-console.log(configInitInfo)
   const { params: feeTierParams } = await initFeeTier(
     ctx,
-    configInitInfo,
-    configKeypairs.feeAuthorityKeypair,
+    payer,
     tickSpacing,
     defaultFeeRate
   );
   const poolInitInfo = await generateDefaultInitPoolParams(
     ctx,
-    configInitInfo.whirlpoolsConfigKeypair.publicKey,
+    configAccount,
     feeTierParams.feeTierPda.publicKey,
     tickSpacing,
     initSqrtPrice,
     funder
   );
   return {
-    configInitInfo,
-    configKeypairs,
     poolInitInfo,
     feeTierParams,
   };
@@ -181,16 +178,15 @@ console.log(configInitInfo)
 
 export async function initFeeTier(
     ctx: WhirlpoolContext,
-    configInitInfo: InitConfigParams,
-    feeAuthorityKeypair: Keypair,
+    feeAuthorityKeypair: Account,
     tickSpacing: number,
     defaultFeeRate: number,
     funder?: Keypair
   ) {
     const params = generateDefaultInitFeeTierParams(
       ctx,
-      configInitInfo.whirlpoolsConfigKeypair.publicKey,
-      configInitInfo.feeAuthority,
+      configAccount,
+      feeAuthorityKeypair.publicKey,
       tickSpacing,
       defaultFeeRate,
       funder?.publicKey
@@ -239,7 +235,7 @@ export async function initFeeTier(
     initSqrtPrice = MathUtil.toX64(new Decimal(5)),
     funder?: PublicKey
   ): Promise<InitPoolParams> => {
-    const [tokenAMintPubKey, tokenBMintPubKey] = await createInOrderMints(context);
+    //const [tokenAMintPubKey, tokenBMintPubKey] = [new PublicKey("3qkBoHrCvScmyGV3rmSES8GJQvjxNCzwu1DMZFuiPn8Y"),new PublicKey("6p3yxkFZkbwQk5F6SZ9d5eb7BbxQsQGJs8rx3rV1K9wy")]
     //[new PublicKey("DnLM7ojzk6A8iKGNsq2NmGWy43vkBieKGefAUcd78a1U"),new PublicKey("7tNABCvkcrWuw1yPYdXBC2Xty1zedjLFHDKNQVWaAmQf")]
   
     const whirlpoolPda = PDAUtil.getWhirlpool(
