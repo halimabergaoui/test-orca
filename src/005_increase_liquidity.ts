@@ -31,8 +31,15 @@ async function main() {
   const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
   const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
   let tick_spacing = TickSpacing.Standard
-  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("7oC9NUSbkx3RcwLbBAXmKHP2e47PkHSCquNrrycx8xNo");
-  let positionMint = new PublicKey("838iNBrq8UvfMubAa8ibR5cVKxjWjYecXQD9RVmRAj1Z")
+  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("CcjXapx2zMZ5LJPSwVmy8YcSH957P9h7QXYbrr3Mszob");
+  let positionMint = new PublicKey("crPeMcWhQDzjr1d7xroKAoebE52eVCZ3RvGpF1EZ9wQ")
+  let tickArray = [
+    new PublicKey("6mfPpjakkqUKKYAvUrimxdWHTUGHtzYaCc7PBcvgpP1T"),
+    new PublicKey("56UV97KEdqN3ugftrV44MSLS7weXBRmE5x9UvicXVwsU"),
+    new PublicKey("B3jLip5MStRutrYLLcKhpZYwvDVh7836V2DWxWKouuh4"),
+    new PublicKey("5GHxDxUDwV6xdiDp6hVkf2ViJjHA63Dz9TRpkuMFrf94"),
+    new PublicKey("8Av4TU7hi1ySANBWPdFz3UKm5qmeM3GymSRBz4Vn4o3h"),
+  ]
 
   //let tokenOwnerAccountA= new PublicKey("Hd8pAvEZKFPP1pqGSZy2t7mF8d2LLdxZT5cvUAuVjmib")
   //let tokenOwnerAccountB= new PublicKey("GhfvZhR75fi5AvPPa1Qbma7Ct36qCd5FbSA5xFP8XqbW")
@@ -40,8 +47,8 @@ async function main() {
   const tokenOwnerAccountB = await getOrCreateATA(provider.connection, devSAMO.mint, provider.wallet.publicKey)
   console.log(" mint tokens ", tokenOwnerAccountA.toBase58(),tokenOwnerAccountB.toBase58())
   //process.exit(-1)
-  await mintTo(provider.connection, devUSDC.mint, provider.wallet.publicKey,10000_000000)
-  await mintTo(provider.connection, devSAMO.mint, provider.wallet.publicKey,10000_000000)
+  await mintTo(provider.connection, devUSDC.mint, provider.wallet.publicKey,10000_000000,undefined)
+  await mintTo(provider.connection, devSAMO.mint, provider.wallet.publicKey,10000_000000,undefined)
     
   //get pool from corresponding to mints and space
     const whirlpool_pubkey = PDAUtil.getWhirlpool(
@@ -59,9 +66,9 @@ const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
     console.log(positionPda.publicKey.toBase58(),positionPda.bump)
     const positionInitInfo = await fetcher.getPosition(positionPda.publicKey);
     console.log(positionInitInfo.liquidity.toString())
-    const currTick = 128;
-    const tickLowerIndex = -1280;
-    let tickUpperIndex = 1280;
+    const currTick = poolData.tickCurrentIndex;
+    const tickLowerIndex = positionInitInfo.tickLowerIndex;
+    let tickUpperIndex = positionInitInfo.tickUpperIndex;
     let tokenAmount = {
       tokenA: new u64(167_000),
       tokenB: new u64(167_000),
@@ -80,61 +87,21 @@ const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
       new PublicKey("He3ZHVNWSpfqGxxSS61YWgUYRzkdQHxQUAeHDh94jqpD")
     );
 
-    //await approve(provider.connection,positionTokenAccountAddress,provider.wallet.publicKey,1)
-    const tick_array_lower_pubkey = PDAUtil.getTickArrayFromTickIndex(positionInitInfo.tickLowerIndex, tick_spacing, whirlpool_pubkey, ctx.program.programId).publicKey;
-    const tick_array_upper_pubkey = PDAUtil.getTickArrayFromTickIndex(positionInitInfo.tickUpperIndex, tick_spacing, whirlpool_pubkey, ctx.program.programId).publicKey;
-    
-    
+    const PositionData = (await fetcher.getPosition(positionPda.publicKey)) as PositionData;
 
     let tickArrayLower= PDAUtil.getTickArray(
       ctx.program.programId,
       whirlpool_pubkey,
-      TickUtil.getStartTickIndex(0, poolData.tickSpacing)
+      TickUtil.getStartTickIndex(PositionData.tickLowerIndex, poolData.tickSpacing)
     )
     let tickArrayUpper= PDAUtil.getTickArray(
       ctx.program.programId,
       whirlpool_pubkey,
-      TickUtil.getStartTickIndex(128, poolData.tickSpacing)
+      TickUtil.getStartTickIndex(PositionData.tickUpperIndex, poolData.tickSpacing)
     );
 
-    let tichArrayDataLower:InitTickArrayParams = {
-      whirlpool:whirlpool_pubkey,
-      tickArrayPda: tickArrayLower,
-      startTick:positionInitInfo.tickLowerIndex,
-      funder: ctx.wallet.publicKey,
-    };
 
-    let tichArrayDataUpper: InitTickArrayParams = {
-      whirlpool:whirlpool_pubkey,
-      tickArrayPda: tickArrayUpper,
-      startTick:positionInitInfo.tickUpperIndex,
-      funder: ctx.wallet.publicKey,
-    };
-    //let tATx1 = await toTx(ctx, WhirlpoolIx.initTickArrayIx(ctx.program, tichArrayDataLower)).buildAndExecute();
-    //let tATx2 = await toTx(ctx, WhirlpoolIx.initTickArrayIx(ctx.program, tichArrayDataUpper)).buildAndExecute();
-
-   // console.log(tATx1)
-
-    console.log({
-      liquidityAmount,
-      tokenMaxA: tokenAmount.tokenA.toString(),
-      tokenMaxB: tokenAmount.tokenB.toString(),
-      whirlpool: whirlpool_pubkey.toBase58(),
-      positionAuthority: provider.wallet.publicKey.toBase58(),
-      position: positionInitInfo.whirlpool.toBase58(),
-      positionTokenAccount: positionTokenAccountAddress.toBase58(),
-      tokenOwnerAccountA: tokenOwnerAccountB.toBase58(),
-      tokenOwnerAccountB: tokenOwnerAccountA.toBase58(),
-      tokenVaultA: poolData.tokenVaultA.toBase58(),
-      tokenVaultB: poolData.tokenVaultB.toBase58(),
-      tickArrayLower: tickArrayLower.publicKey.toBase58(),
-      tickArrayUpper: tickArrayUpper.publicKey.toBase58(),
-      mintA:poolData.tokenMintA.toBase58(),
-      mintB:poolData.tokenMintB.toBase58()
-    })
-
-    //HHBmz3fgxEs1QNPsznDJEWkJS3QtdKkNsVWabrjkw3Q5
-let programID=new PublicKey("ENzAqkGsKtTmgoNj2kWBjeHdvu8XoKrgHbzYSxneXpfQ");
+let programID=new PublicKey("6nogxJU7qWUQtnWwhdDVZz5G2J2xN6VXTER92UhQFpvC");
 console.log({pubkey: ORCA_WHIRLPOOL_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: ctx.wallet.publicKey.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: positionPda.publicKey.toString(), isSigner: false, isWritable: false})
@@ -145,10 +112,10 @@ console.log({pubkey: tokenOwnerAccountA.toString(), isSigner: false, isWritable:
 console.log({pubkey: tokenOwnerAccountB.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: poolData.tokenVaultA.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: poolData.tokenVaultB.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: tickArrayLower.publicKey.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: tickArrayUpper.publicKey.toString(), isSigner: false, isWritable: false})
+console.log(PositionData.tickLowerIndex,{pubkey: tickArrayLower.publicKey.toString(), isSigner: false, isWritable: false})
+console.log(PositionData.tickUpperIndex,{pubkey: tickArrayUpper.publicKey.toString(), isSigner: false, isWritable: false})
 
-
+/*
 let  keys=[
   {pubkey: ORCA_WHIRLPOOL_PROGRAM_ID, isSigner: false, isWritable: false},
   {pubkey: ctx.wallet.publicKey, isSigner: true, isWritable: true},
@@ -175,8 +142,8 @@ let tx= await sendAndConfirmTransaction(
   new Transaction().add(instruction),
   [payer],
 ); 
-console.log("txxx ",tx)
-   /* let tx = await toTx(
+console.log("txxx ",tx)*/
+    let tx = await toTx(
       ctx,
       WhirlpoolIx.increaseLiquidityIx(ctx.program, {
         liquidityAmount,
@@ -186,15 +153,15 @@ console.log("txxx ",tx)
         positionAuthority: provider.wallet.publicKey,
         position: positionPda.publicKey,
         positionTokenAccount: positionTokenAccountAddress,
-        tokenOwnerAccountA: tokenOwnerAccountB,
-        tokenOwnerAccountB: tokenOwnerAccountA,
+        tokenOwnerAccountA: tokenOwnerAccountA,
+        tokenOwnerAccountB: tokenOwnerAccountB,
         tokenVaultA: poolData.tokenVaultA,
         tokenVaultB: poolData.tokenVaultB,
         tickArrayLower: tickArrayLower.publicKey,
         tickArrayUpper: tickArrayUpper.publicKey,
       })
     ).buildAndExecute();
-    console.log("increqse liquidity tx ",tx)*/
+    console.log("increqse liquidity tx ",tx)
 }
 
   export function toTx(ctx: WhirlpoolContext, ix: Instruction): TransactionBuilder {

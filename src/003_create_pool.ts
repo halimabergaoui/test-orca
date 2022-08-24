@@ -4,7 +4,7 @@ import * as anchor from "@project-serum/anchor";
 
 import {
   WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID,
-  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, InitFeeTierParams, InitPoolParams, WhirlpoolData, TickUtil, InitTickArrayParams
+  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, InitFeeTierParams, InitPoolParams, WhirlpoolData, TickUtil, InitTickArrayParams, PriceMath
 } from "@orca-so/whirlpools-sdk";
 import {
    EMPTY_INSTRUCTION, deriveATA, resolveOrCreateATA
@@ -15,10 +15,11 @@ import { Account, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, 
 import Decimal from "decimal.js";
 import { TransactionBuilder, Instruction } from "@orca-so/common-sdk";
 import { payer } from "./payer";
+import { TickSpacing } from "./tick_spacing";
 const defaultInitSqrtPrice = MathUtil.toX64_BN(new anchor.BN(5));
 const tokenAMintPubKey = new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT")//await createMint(provider);
 const tokenBMintPubKey = new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V")
-const configAccount = new PublicKey('7oC9NUSbkx3RcwLbBAXmKHP2e47PkHSCquNrrycx8xNo')
+const configAccount = new PublicKey('CcjXapx2zMZ5LJPSwVmy8YcSH957P9h7QXYbrr3Mszob')
 
 async function main() {
     //export ANCHOR_WALLET='/Users/macbook/Desktop/halima/tour-de-whirlpool/wallet.json'
@@ -35,7 +36,7 @@ async function main() {
 
     const {poolInitInfo } = await initTestPool(
           ctx,
-          128,
+          TickSpacing.Standard,
           price
         );
         const poolData = (await fetcher.getPool(poolInitInfo.whirlpoolPda.publicKey)) as WhirlpoolData;
@@ -45,12 +46,13 @@ async function main() {
           configAccount,
           poolInitInfo.tokenMintA,
           poolInitInfo.tokenMintB,
-          128
+          TickSpacing.Standard
         );
         console.log("poolInfo ",poolInitInfo.whirlpoolPda.publicKey.toBase58(),expectedWhirlpoolPda.publicKey.toBase58())
         console.log(poolData.tokenMintA,(poolInitInfo.tokenMintA));
-        const whirlpool1 = await client.getPool(poolInitInfo.whirlpoolPda.publicKey);
-        console.log("pool 1 ",whirlpool1.getAddress().toBase58())
+        const whirlpool1 = await fetcher.getPool(poolInitInfo.whirlpoolPda.publicKey);
+        console.log("pool 1 ",whirlpool1.sqrtPrice, whirlpool1.liquidity,whirlpool1.tickCurrentIndex)
+        PriceMath.sqrtPriceX64ToTickIndex(poolInitInfo.initSqrtPrice)
         /*assert.ok(poolInitInfo.whirlpoolPda.publicKey.equals(expectedWhirlpoolPda.publicKey));
         assert.equal(expectedWhirlpoolPda.bump, whirlpool.whirlpoolBump[0]);
     

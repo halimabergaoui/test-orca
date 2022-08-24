@@ -1,7 +1,7 @@
 import { Keypair, Connection } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { TokenUtil, DecimalUtil } from "@orca-so/common-sdk";
-import secret from "../wallet.json";
+import secret from "../../wallet.json";
 
 const RPC_ENDPOINT_URL = "https://api.devnet.solana.com";
 const COMMITMENT = 'confirmed';

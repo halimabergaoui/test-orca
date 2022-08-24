@@ -18,17 +18,19 @@ export async function getOrCreateATA(connection:any,mint:PublicKey,owner:PublicK
        return ATA
 }
 
-export async function mintTo(connection:any,mint:PublicKey,owner:PublicKey,amount:number){
+export async function mintTo(connection:any,mint:PublicKey,owner:PublicKey,amount:number,vault:PublicKey){
   let payer = Keypair.fromSecretKey(new Uint8Array(secret));
   let ATA = await findAssociatedTokenAddress(owner,mint)
+  if(vault) ATA =vault
 
+  console.log("ATA??? ",ATA.toBase58())
    let instruction = await Token.createMintToInstruction(TOKEN_PROGRAM_ID, mint, ATA, payer.publicKey,[],amount)
      let x2 = await sendAndConfirmTransaction(
          connection,
          new Transaction().add(instruction),
           [payer],
      );
-     console.log("create ATA ", x2)
+     console.log("mint to ATA ", x2)
      return ATA
 }
 
