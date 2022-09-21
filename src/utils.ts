@@ -1,6 +1,7 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import secret from "../wallet.json";
+import secret from "../wallet2.json";
+import { payer } from "./payer";
 
 export async function getOrCreateATA(connection:any,mint:PublicKey,owner:PublicKey){
     let payer = Keypair.fromSecretKey(new Uint8Array(secret));
@@ -19,7 +20,7 @@ export async function getOrCreateATA(connection:any,mint:PublicKey,owner:PublicK
 }
 
 export async function mintTo(connection:any,mint:PublicKey,owner:PublicKey,amount:number,vault:PublicKey){
-  let payer = Keypair.fromSecretKey(new Uint8Array(secret));
+  //let payer = Keypair.fromSecretKey(new Uint8Array(secret));
   let ATA = await findAssociatedTokenAddress(owner,mint)
   if(vault) ATA =vault
 
@@ -35,7 +36,7 @@ export async function mintTo(connection:any,mint:PublicKey,owner:PublicKey,amoun
 }
 
 export async function approve(connection:any,ATA:PublicKey,delegate:PublicKey,amount:number){
-  let payer = Keypair.fromSecretKey(new Uint8Array(secret));
+  //let payer = Keypair.fromSecretKey(new Uint8Array(secret));
 
    let instruction = await Token.createApproveInstruction(TOKEN_PROGRAM_ID,ATA,delegate,payer.publicKey,[],amount)
      let x2 = await sendAndConfirmTransaction(

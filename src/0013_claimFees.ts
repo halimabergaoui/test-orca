@@ -1,6 +1,6 @@
 
 import { Provider, BN } from "@project-serum/anchor";
-import { WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID, PDAUtil, PoolUtil, OpenPositionParams, PositionData, PriceMath, TokenAmounts, TickUtil, WhirlpoolIx} from "@orca-so/whirlpools-sdk";
+import { WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID, PDAUtil, PoolUtil, OpenPositionParams, PositionData, PriceMath, TokenAmounts, TickUtil, WhirlpoolIx, collectFeesQuote} from "@orca-so/whirlpools-sdk";
 import { MathUtil} from "@orca-so/common-sdk";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Keypair, PublicKey, sendAndConfirmTransaction, Transaction, TransactionInstruction } from "@solana/web3.js";
@@ -9,6 +9,7 @@ import { TickSpacing } from "./tick_spacing";
 import { u64 } from "./u64";
 import { approve, getOrCreateATA, mintTo } from "./utils";
 import { payer } from "./payer";
+import { LP } from "./LP";
 
 
 
@@ -86,8 +87,40 @@ const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
       whirlpool_pubkey,
       TickUtil.getStartTickIndex(positionInitInfo.tickUpperIndex, poolData.tickSpacing)
     );
+//Gi6YPexNgd93YYzEAwYJMTannqY4dZqPvLTqjxwvNZwZ
 
- /*  let updateTx = await toTx(
+let programID=new PublicKey("Gi6YPexNgd93YYzEAwYJMTannqY4dZqPvLTqjxwvNZwZ");
+
+let rewardVault=poolData.rewardInfos[0].vault
+let  keys=[
+  {pubkey: positionPda.publicKey, isSigner: false, isWritable: true},
+  {pubkey: whirlpool_pubkey, isSigner: false, isWritable: true},
+  {pubkey: tickArrayLower.publicKey, isSigner: false, isWritable: true},
+  {pubkey: tickArrayUpper.publicKey, isSigner: false, isWritable: true},
+  {pubkey: ctx.wallet.publicKey, isSigner: true, isWritable: true},
+  {pubkey: positionTokenAccountAddress, isSigner: false, isWritable: true},
+  {pubkey: tokenOwnerAccountA, isSigner: false, isWritable: true},
+  {pubkey: poolData.tokenVaultA, isSigner: false, isWritable: true},
+  {pubkey: tokenOwnerAccountB, isSigner: false, isWritable: true},
+  {pubkey: poolData.tokenVaultB, isSigner: false, isWritable: true},
+  {pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},
+  {pubkey: ORCA_WHIRLPOOL_PROGRAM_ID, isSigner: false, isWritable: false},
+];
+// console.log(keys, SystemProgram.programId)
+const instruction = new TransactionInstruction({
+ keys,
+  programId:programID,
+  data: Buffer.from([]), // All instructions are hellos
+});
+let tx= await sendAndConfirmTransaction(
+  ctx.connection,
+  new Transaction().add(instruction),
+  [LP],
+); 
+console.log(new Account())
+console.log("txxx ",tx)
+
+ /*let updateTx = await toTx(
       ctx,
       WhirlpoolIx.updateFeesAndRewardsIx(ctx.program, {
         whirlpool: whirlpool_pubkey,
@@ -98,63 +131,43 @@ const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
     ).buildAndExecute();
     console.log("update tx ",updateTx)
 
-    let tx = await toTx(
+    const positionBeforeCollect = (await fetcher.getPosition(
+      positionMint,
+      true
+    )) as PositionData;
+    console.log(positionInitInfo.feeOwedA.toNumber());
+    console.log(positionInitInfo.feeOwedB.toNumber());
+
+    const feeAccountA = await getOrCreateATA(provider, devUSDC.mint, provider.wallet.publicKey);
+    const feeAccountB = await getOrCreateATA(provider, devSAMO.mint, provider.wallet.publicKey);
+
+    // Generate collect fees expectation
+   /* const whirlpoolData = (await fetcher.getPool(whirlpoolPda.publicKey)) as WhirlpoolData;
+    const tickArrayData = (await fetcher.getTickArray(tickArrayPda.publicKey)) as TickArrayData;
+    const lowerTick = TickArrayUtil.getTickFromArray(tickArrayData, tickLowerIndex, tickSpacing);
+    const upperTick = TickArrayUtil.getTickFromArray(tickArrayData, tickUpperIndex, tickSpacing);
+    const expectation = collectFeesQuote({
+      whirlpool: whirlpoolData,
+      position: positionBeforeCollect,
+      tickLower: lowerTick,
+      tickUpper: upperTick,
+    });*/
+
+    // Perform collect fees tx
+   /* let tx = await toTx(
       ctx,
-      WhirlpoolIx.collectRewardIx(ctx.program, {
+      WhirlpoolIx.collectFeesIx(ctx.program, {
         whirlpool: whirlpool_pubkey,
         positionAuthority: provider.wallet.publicKey,
         position: positionPda.publicKey,
         positionTokenAccount: positionTokenAccountAddress,
-        rewardOwnerAccount:  rewardOwnerAccount,
-        rewardVault: poolData.rewardInfos[0].vault,
-        rewardIndex: 0,
+        tokenOwnerAccountA: feeAccountA,
+        tokenOwnerAccountB: feeAccountB,
+        tokenVaultA: poolData.tokenVaultA,
+        tokenVaultB: poolData.tokenVaultB,
       })
-    ).buildAndExecute();
-
-    console.log("tx ",tx)*/
-
-   //HHBmz3fgxEs1QNPsznDJEWkJS3QtdKkNsVWabrjkw3Q5
-let programID=new PublicKey("22BThUbYbPypCrxStZCGD6zd1Y8YNWADdukDsL8JfSga");
-console.log({pubkey: ORCA_WHIRLPOOL_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: positionPda.publicKey.toString(), isSigner: false, isWritable: false})
-
-console.log({pubkey: ctx.wallet.publicKey.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: positionTokenAccountAddress.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: TOKEN_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: whirlpool_pubkey.toString(), isSigner: false, isWritable: true})
-console.log({pubkey: tokenOwnerAccountA.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: tokenOwnerAccountB.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: poolData.tokenVaultA.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: poolData.tokenVaultB.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: tickArrayLower.publicKey.toString(), isSigner: false, isWritable: false})
-console.log({pubkey: tickArrayUpper.publicKey.toString(), isSigner: false, isWritable: false})
-
-let rewardVault=poolData.rewardInfos[0].vault
-let  keys=[
-  {pubkey: positionPda.publicKey, isSigner: false, isWritable: true},
-  {pubkey: whirlpool_pubkey, isSigner: false, isWritable: true},
-  {pubkey: tickArrayLower.publicKey, isSigner: false, isWritable: true},
-  {pubkey: tickArrayUpper.publicKey, isSigner: false, isWritable: true},
-  {pubkey: ctx.wallet.publicKey, isSigner: true, isWritable: true},
-  {pubkey: positionTokenAccountAddress, isSigner: false, isWritable: true},
-  {pubkey: rewardOwnerAccount, isSigner: false, isWritable: true},
-  {pubkey: rewardVault, isSigner: false, isWritable: true},
-  {pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},
-  {pubkey: ORCA_WHIRLPOOL_PROGRAM_ID, isSigner: false, isWritable: false},
-];
-// console.log(keys, SystemProgram.programId)
-const instruction = new TransactionInstruction({
- keys,
-  programId:programID,
-  data: Buffer.from([0]), // All instructions are hellos
-});
-let tx= await sendAndConfirmTransaction(
-  ctx.connection,
-  new Transaction().add(instruction),
-  [payer],
-); 
-console.log("txxx ",tx)
-
+    ).buildAndExecute();*/
+//console.log(tx)
 }
 
   export function toTx(ctx: WhirlpoolContext, ix: Instruction): TransactionBuilder {
