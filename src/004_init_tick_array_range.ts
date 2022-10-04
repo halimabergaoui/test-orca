@@ -25,10 +25,10 @@ async function main() {
     console.log("wallet pubkey:", ctx.wallet.publicKey.toBase58());
 
 
-  const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
-  const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
+  const devUSDC = {mint: new PublicKey("6PfQ8kHe5iYKWKU9ADzY9RC3xNfjEQoRnvKL1eSdNp7p"), decimals: 6};
+  const devSAMO = {mint: new PublicKey("E6BQ3Jya5ibL5nvH5LbQakUcECwmGrnUxpgxYvyBVJks"), decimals: 6};
   let tick_spacing = TickSpacing.Standard
-  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("CcjXapx2zMZ5LJPSwVmy8YcSH957P9h7QXYbrr3Mszob");  
+  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("DHXG1yscPCvovnQccrgSykisgwpY2Re6bmKCN2pykWW7");  
     
   //get pool from corresponding to mints and space
     const whirlpool_pubkey = PDAUtil.getWhirlpool(
@@ -37,11 +37,11 @@ async function main() {
        devUSDC.mint, devSAMO.mint,  tick_spacing).publicKey;
 
 
-let startTick=128*88
+let startTick=0
 const tickArrays = await initTickArrayRange(
   ctx,
   whirlpool_pubkey,
-  0, // to 28160, 28864
+  startTick, // to 28160, 28864
   5,
   TickSpacing.Standard,
   false
@@ -63,12 +63,13 @@ export async function initTickArrayRange(
   const result: PDA[] = [];
 
   for (let i = 0; i < arrayCount; i++) {
-    const { params } = await initTickArray(
+    if(!(!aToB && i ==0))
+    {const { params } = await initTickArray(
       ctx,
       whirlpool,
       startTickIndex + direction * ticksInArray * i
     );
-    result.push(params.tickArrayPda);
+    result.push(params.tickArrayPda);}
   }
 
   return result;

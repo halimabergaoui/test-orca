@@ -4,7 +4,7 @@ import * as anchor from "@project-serum/anchor";
 const BN = anchor.BN
 import {
   WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID,
-  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, OpenPositionParams, InitPoolParams, PositionData, TickUtil, InitTickArrayParams
+  PDAUtil, PoolUtil, WhirlpoolIx, InitConfigParams, WhirlpoolsConfigData, OpenPositionParams, InitPoolParams, PositionData
 } from "@orca-so/whirlpools-sdk";
 import {
    EMPTY_INSTRUCTION, deriveATA, resolveOrCreateATA
@@ -32,98 +32,60 @@ async function main() {
   let defaultMint: Keypair;
 
   // funder should have sol
-  const funderKeypair = payer
-  /* new Account([
-    29, 152, 251,  98, 180, 233, 207,  49, 167, 119, 143,
-   121, 179,  73,  74, 248, 220, 152, 105,  60,  59, 176,
-   191, 128,  21,  99, 136, 244,   5, 195,  26, 252, 204,
-   130,  85, 108, 248, 117,   3, 154,  92,  78, 183, 121,
-   185, 219, 142,  77, 218,   3,  90, 119, 253, 137, 123,
-   236, 114, 170,  55,   9, 226, 162,  59,  76])*/
+
    //anchor.web3.Keypair.generate();
   //console.log("funder",funderKeypair.publicKey.toBase58())
-
   const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
   const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
   let tick_spacing = TickSpacing.Standard
-  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("CcjXapx2zMZ5LJPSwVmy8YcSH957P9h7QXYbrr3Mszob");
+  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("AtSGG1e6gx2cistKmhPFUnr8Xy1oJFzPSzSCXKPZ5uNv");
+  let positionMint = new PublicKey("BCqRYzHMBAEQqT6ERZjt81cmG5g8xHm6nr9jQ5VPTNY3")
+  const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
+  const positionTokenAccountAddress = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    positionMint,
+    payer.publicKey
+  );
+
+
+
     
   //get pool corresponding to mints and space
     const whirlpool_pubkey = PDAUtil.getWhirlpool(
         ORCA_WHIRLPOOL_PROGRAM_ID,
         NEBULA_WHIRLPOOLS_CONFIG,
-        devUSDC.mint, devSAMO.mint,  tick_spacing).publicKey;
+        devSAMO.mint, devUSDC.mint, tick_spacing).publicKey;
 
-  // generate position params
-    const { params, mint } = await generateDefaultOpenPositionParams(
-      ctx,
-      whirlpool_pubkey,
-      0,
-      88*4*128,
-      provider.wallet.publicKey,
-      funderKeypair.publicKey
-    );
-    defaultParams = params;
-    defaultMint = mint;
-    let withMetadata = false
-    //await systemTransferTx(provider, funderKeypair.publicKey, ONE_SOL).buildAndExecute();
-    /*let tx = withMetadata
-    ? toTx(ctx, WhirlpoolIx.openPositionWithMetadataIx(ctx.program, params))
-    : toTx(ctx, WhirlpoolIx.openPositionIx(ctx.program, params));
-  tx.addSigner(mint);
-  if (funderKeypair) {
-    tx.addSigner(funderKeypair);
-  }
-  const txId = await tx.buildAndExecute();
-  console.log("open position txn ", txId)*/
-  /*funder: funder || context.wallet.publicKey,
-      owner: owner,
-      positionPda,
-      metadataPda,
-      positionMintAddress: positionMintKeypair.publicKey,
-      positionTokenAccount: positionTokenAccountAddress,
-      whirlpool: whirlpool,
-      tickLowerIndex,
-      tickUpperIndex,*/
-    let programID=new PublicKey("BwJ49WoC83Fbn3bHUbTtPiyQJaRZhSvuYewWHpAQbsoc");
-    console.log({pubkey: ORCA_WHIRLPOOL_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
-    console.log( {pubkey: params.positionPda.publicKey.toString(), isSigner: false, isWritable: true})
-      console.log({pubkey: params.positionMintAddress.toString(), isSigner: true, isWritable: true})
-        console.log({pubkey: params.positionTokenAccount.toString(), isSigner: false, isWritable: true})
-          console.log( {pubkey: TOKEN_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
-            console.log( {pubkey: params.funder.toString(), isSigner: true, isWritable: false})
-              console.log( {pubkey: params.owner.toString(), isSigner: true, isWritable: false})
-                console.log( {pubkey: params.whirlpool.toString(), isSigner: false, isWritable: false})
-                  console.log( {pubkey: SystemProgram.programId.toString(), isSigner: false, isWritable: false})
-                    console.log({pubkey: SYSVAR_RENT_PUBKEY.toString(), isSigner: false, isWritable: false})
-                      console.log( {pubkey: ASSOCIATED_TOKEN_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
+    let programID=new PublicKey("7m8rA1npZfiKeF1DE3PGgT4w73gmT7hnHho4C5yKTBaw");
+    
     let  keys=[
       {pubkey: ORCA_WHIRLPOOL_PROGRAM_ID, isSigner: false, isWritable: false},
-      {pubkey: params.positionPda.publicKey, isSigner: false, isWritable: true},
-      {pubkey: params.positionMintAddress, isSigner: true, isWritable: true},
-      {pubkey: params.positionTokenAccount, isSigner: false, isWritable: true},
+      {pubkey: payer.publicKey, isSigner: true, isWritable: false},
+      {pubkey: payer.publicKey, isSigner: false, isWritable: true},
+      {pubkey: positionPda.publicKey, isSigner: false, isWritable: true},
+      {pubkey: positionMint, isSigner: false, isWritable: true},
+      {pubkey: positionTokenAccountAddress, isSigner: false, isWritable: true},
       {pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},
-      {pubkey: params.funder, isSigner: true, isWritable: true},
-      {pubkey: params.owner, isSigner: true, isWritable: false},
-      {pubkey: params.whirlpool, isSigner: false, isWritable: false},
-      {pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
-      {pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
-      {pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},
-
     ];
    // console.log(keys, SystemProgram.programId)
-    let bumps=params.positionPda.bump
+    
     const instruction = new TransactionInstruction({
+       // @ts-ignore
      keys,
       programId:programID,
-      data: Buffer.from([bumps]), // All instructions are hellos
+      data: Buffer.from([]), // All instructions are hellos
     });
    let tx= await sendAndConfirmTransaction(
       ctx.connection,
       new Transaction().add(instruction),
-      [payer,funderKeypair,defaultMint],
+      [payer],
     ); 
-    console.log("txxx ",tx)    
+    console.log("txxx ",tx)
+
+//fetch position  
+    //  const position = (await fetcher.getPosition(mint)) as PositionData;
+
 }
 
 export async function generateDefaultOpenPositionParams(

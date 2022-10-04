@@ -1,6 +1,6 @@
 
 import { Provider, BN } from "@project-serum/anchor";
-import { WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID, PDAUtil, PoolUtil, OpenPositionParams, PositionData, PriceMath, TokenAmounts, TickUtil, WhirlpoolIx, DecreaseLiquidityQuoteParam, DecreaseLiquidityQuote} from "@orca-so/whirlpools-sdk";
+import { WhirlpoolContext, AccountFetcher, buildWhirlpoolClient, ORCA_WHIRLPOOL_PROGRAM_ID, PDAUtil, PoolUtil, OpenPositionParams, PositionData, PriceMath, TokenAmounts, TickUtil, WhirlpoolIx, DecreaseLiquidityQuoteParam, DecreaseLiquidityQuote, decreaseLiquidityQuoteByLiquidityWithParams} from "@orca-so/whirlpools-sdk";
 import { MathUtil} from "@orca-so/common-sdk";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Keypair, PublicKey, sendAndConfirmTransaction, Transaction, TransactionInstruction } from "@solana/web3.js";
@@ -11,6 +11,7 @@ import { approve, getOrCreateATA, mintTo } from "./utils";
 import invariant from "tiny-invariant";
 import { adjustForSlippage, getTokenAFromLiquidity, getTokenBFromLiquidity, PositionStatus, PositionUtil } from "./positionUtils";
 import { payer } from "./payer";
+import { LP } from "./LP";
 const ZERO=new BN(0);
 
 
@@ -31,9 +32,9 @@ async function main() {
 
   const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
   const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
-  let tick_spacing = TickSpacing.SixtyFour
-  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("7oC9NUSbkx3RcwLbBAXmKHP2e47PkHSCquNrrycx8xNo");
-  let positionMint = new PublicKey("838iNBrq8UvfMubAa8ibR5cVKxjWjYecXQD9RVmRAj1Z")
+  let tick_spacing = TickSpacing.Standard
+  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("AtSGG1e6gx2cistKmhPFUnr8Xy1oJFzPSzSCXKPZ5uNv");
+  let positionMint = new PublicKey("BCqRYzHMBAEQqT6ERZjt81cmG5g8xHm6nr9jQ5VPTNY3")
 
   //let tokenOwnerAccountA= new PublicKey("Hd8pAvEZKFPP1pqGSZy2t7mF8d2LLdxZT5cvUAuVjmib")
   //let tokenOwnerAccountB= new PublicKey("GhfvZhR75fi5AvPPa1Qbma7Ct36qCd5FbSA5xFP8XqbW")
@@ -70,15 +71,32 @@ const positionPda = PDAUtil.getPosition(ctx.program.programId, positionMint);
     let tickArrayLower= PDAUtil.getTickArray(
       ctx.program.programId,
       whirlpool_pubkey,
-      TickUtil.getStartTickIndex(0, poolData.tickSpacing)
+      TickUtil.getStartTickIndex(positionInitInfo.tickLowerIndex, poolData.tickSpacing)
     )
     let tickArrayUpper= PDAUtil.getTickArray(
       ctx.program.programId,
       whirlpool_pubkey,
-      TickUtil.getStartTickIndex(128, poolData.tickSpacing)
+      TickUtil.getStartTickIndex(positionInitInfo.tickUpperIndex, poolData.tickSpacing)
     );
+    let approveTx = await approve(ctx.connection,positionTokenAccountAddress,ctx.wallet.publicKey,1)
+console.log("approve tx ", approveTx.toBase58())
+const liquidity = positionInitInfo.liquidity;
+const delta_liquidity = liquidity.mul(new BN(50)).div(new BN(100));
+const slippage = Percentage.fromFraction(10, 1000); // 1%
+const quote = decreaseLiquidityQuoteByLiquidityWithParams({
+  sqrtPrice: poolData.sqrtPrice,
+  tickCurrentIndex: poolData.tickCurrentIndex,
+  // 価格帯はポジションのものをそのまま渡す
+  tickLowerIndex: positionInitInfo.tickLowerIndex,
+  tickUpperIndex: positionInitInfo.tickUpperIndex,
+  // 引き出す流動性
+  liquidity: delta_liquidity,
+  // スリッページ
+  slippageTolerance: slippage,
+});
+console.log(positionInitInfo.liquidity.toNumber(),quote.liquidityAmount.toNumber(),quote.tokenMinA.toNumber(), quote.tokenMinB.toNumber(), quote.tokenEstA.toNumber(), quote.tokenEstB.toNumber())
 //HHBmz3fgxEs1QNPsznDJEWkJS3QtdKkNsVWabrjkw3Q5
-let programID=new PublicKey("68jCPMm7A7Xfff16fsEuaL5aY9T2rue1hQRJsm7S9gXs");
+let programID=new PublicKey("F4xyJmKwMR7G1rcQ4EfNDADFUNx6kBnaxCAihgt553Te");
 console.log({pubkey: ORCA_WHIRLPOOL_PROGRAM_ID.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: ctx.wallet.publicKey.toString(), isSigner: false, isWritable: false})
 console.log({pubkey: positionPda.publicKey.toString(), isSigner: false, isWritable: false})
@@ -114,13 +132,24 @@ const instruction = new TransactionInstruction({
   programId:programID,
   data: Buffer.from([]), // All instructions are hellos
 });
-let tx= await sendAndConfirmTransaction(
+ let tx= await sendAndConfirmTransaction(
   ctx.connection,
   new Transaction().add(instruction),
-  [payer],
+  [LP],
 ); 
-console.log("txxx ",tx)
-   /* let tx = await toTx(
+console.log("txxx ",tx) 
+
+/*let tokenAmount = {
+  tokenA: new u64(10_100_000),
+  tokenB: new u64(10_100_000),
+}
+const liquidityAmount =PoolUtil.estimateLiquidityFromTokenAmounts(
+  poolData.tickCurrentIndex,
+  positionInitInfo.tickLowerIndex,
+  positionInitInfo.tickUpperIndex,
+  tokenAmount
+);
+    let tx = await toTx(
       ctx,
       WhirlpoolIx.decreaseLiquidityIx(ctx.program, {
         liquidityAmount,
@@ -130,8 +159,8 @@ console.log("txxx ",tx)
         positionAuthority: provider.wallet.publicKey,
         position: positionPda.publicKey,
         positionTokenAccount: positionTokenAccountAddress,
-        tokenOwnerAccountA: tokenOwnerAccountB,
-        tokenOwnerAccountB: tokenOwnerAccountA,
+        tokenOwnerAccountA: tokenOwnerAccountA,
+        tokenOwnerAccountB: tokenOwnerAccountB,
         tokenVaultA: poolData.tokenVaultA,
         tokenVaultB: poolData.tokenVaultB,
         tickArrayLower: tickArrayLower.publicKey,

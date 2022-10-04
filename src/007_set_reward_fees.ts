@@ -12,10 +12,9 @@ import { payer } from "./payer";
 import { createMint } from "./001_create_mints";
 
 const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
-  const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
-  let tick_spacing = TickSpacing.Standard
-  const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("yo5h6fadeNSZrj1Wj5q7CpBnzFiQYF8K9nJwPqhShb8");
-  let positionMint = new PublicKey("GxbUuWwq3zctBhW4zAGB4dL5LpvPPF2XPTwPZbszTSwR")
+const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
+let tick_spacing = TickSpacing.Standard
+const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("AtSGG1e6gx2cistKmhPFUnr8Xy1oJFzPSzSCXKPZ5uNv");
 
 // any one can open a position: have a mint created with no minting authority and 0 liquidity
 async function main() {
@@ -28,7 +27,7 @@ async function main() {
   
     console.log("endpoint:", ctx.connection.rpcEndpoint);
     console.log("wallet pubkey:", ctx.wallet.publicKey.toBase58());
-let rewardIndex=1;
+let rewardIndex=0;
   
 
   //get pool from corresponding to mints and space
@@ -47,7 +46,7 @@ let rewardIndex=1;
         console.log(whirlpool_pubkey.toBase58(),"whirlpool_pubkey");
 
         console.log("///////////////////////////// set fee rate and and rewrd emission //////////////")
-        let newFeeRate = 10
+        let newFeeRate = 10000
         let program = ctx.program
         let feeTx = await program.rpc.setFeeRate(newFeeRate, {
           accounts: {

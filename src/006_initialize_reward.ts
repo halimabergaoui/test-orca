@@ -28,9 +28,9 @@ async function main() {
     const devUSDC = {mint: new PublicKey("7p6QmuWHsYRSegWKB8drgLmL2tqrQ7gYyUVC1j7CYVnT"), decimals: 6};
     const devSAMO = {mint: new PublicKey("F7ksMSuEWqfnK6rXXn8Z7HocP1uYsJVdSzXUzWmFmu5V"), decimals: 6};
     let tick_spacing = TickSpacing.Standard
-    const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("CcjXapx2zMZ5LJPSwVmy8YcSH957P9h7QXYbrr3Mszob");
-    let positionMint = new PublicKey("crPeMcWhQDzjr1d7xroKAoebE52eVCZ3RvGpF1EZ9wQ")
-const rewardIndex =0;
+    const NEBULA_WHIRLPOOLS_CONFIG = new PublicKey("AtSGG1e6gx2cistKmhPFUnr8Xy1oJFzPSzSCXKPZ5uNv");
+   
+    const rewardIndex =0;
   //get pool from corresponding to mints and space
     const whirlpool_pubkey = PDAUtil.getWhirlpool(
         ORCA_WHIRLPOOL_PROGRAM_ID,

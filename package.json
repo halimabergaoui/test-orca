@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "var":"export ANCHOR_WALLET=/Users/macbook/Desktop/halima/orca/test-orca/wallet2.json && export ANCHOR_PROVIDER_URL=https://api.devnet.solana.com",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
